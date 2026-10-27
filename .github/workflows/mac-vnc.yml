@@ -1,4 +1,4 @@
-name: macOS Free VNC
+name: macOS Free Cloud Session
 
 on:
   workflow_dispatch:
@@ -10,50 +10,23 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Setup VNC & Start Tunnel
-        env:
-          NGROK_AUTH_TOKEN: ${{ secrets.NGROK_AUTH_TOKEN }}
-          VNC_PASSWORD: ${{ secrets.VNC_PASSWORD }}
+      - name: Setup Free Terminal & Remote Access
         run: |
-          # 1. Enable VNC / Screen Sharing
-          sudo /System/Library/CoreServices/RemoteManagement/ARDAgent.app/Contents/Resources/kickstart \
-            -activate -configure -access -on \
-            -clientopts -setvnclegacy -vnclegacy yes \
-            -clientopts -setvncpw -vncpw "$VNC_PASSWORD" \
-            -restart -agent -privs -all
+          # tmate install karna
+          brew install tmate
 
-          # 2. Download and install ngrok binary directly
-          curl -sSL https://bin.equinox.io/c/bNyj1mQVY4c/ngrok-v3-stable-darwin-arm64.zip -o ngrok.zip
-          unzip -q ngrok.zip
-          sudo mv ngrok /usr/local/bin/ngrok
-          rm ngrok.zip
+          # tmate session start karna
+          tmate -S /tmp/tmate.sock new-session -d
+          tmate -S /tmp/tmate.sock wait tmate-ready
 
-          # 3. Setup Ngrok token
-          /usr/local/bin/ngrok config add-authtoken "$NGROK_AUTH_TOKEN"
-
-          # 4. Start ngrok in background
-          nohup /usr/local/bin/ngrok tcp 5900 --log=stdout > ngrok.log 2>&1 &
-          
-          # 5. Wait for tunnel URL
-          echo "Waiting for Ngrok tunnel..."
-          for i in {1..30}; do
-            URL=$(curl -s http://127.0.0.1:4040/api/tunnels | grep -o 'tcp://[^"]*' || true)
-            if [ -n "$URL" ]; then
-              echo "===================================================="
-              echo "SUCCESS! CONNECT TO THIS ADDRESS IN VNC VIEWER:"
-              echo "$URL"
-              echo "===================================================="
-              break
-            fi
-            sleep 2
-          done
-
-          # Check if tunnel failed
-          if [ -z "$URL" ]; then
-            echo "Ngrok failed to connect. Showing logs:"
-            cat ngrok.log
-            exit 1
-          fi
+          # Web aur SSH links print karna
+          echo "============================================================"
+          echo "DIRECT BROWSER TERMINAL LINK:"
+          tmate -S /tmp/tmate.sock display -p '#{tmate_web}'
+          echo "============================================================"
+          echo "SSH CONNECTION COMMAND:"
+          tmate -S /tmp/tmate.sock display -p '#{tmate_ssh}'
+          echo "============================================================"
 
       - name: Keep Runner Alive
         run: |
