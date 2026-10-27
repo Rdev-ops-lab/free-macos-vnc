@@ -10,33 +10,25 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Setup VNC Screen Sharing
+      - name: Setup VNC & Start Tunnel
         env:
+          NGROK_AUTH_TOKEN: ${{ secrets.NGROK_AUTH_TOKEN }}
           VNC_PASSWORD: ${{ secrets.VNC_PASSWORD }}
         run: |
-          # VNC enable aur runner password set karna
+          # 1. Enable VNC / Screen Sharing
           sudo /System/Library/CoreServices/RemoteManagement/ARDAgent.app/Contents/Resources/kickstart \
             -activate -configure -access -on \
             -clientopts -setvnclegacy -vnclegacy yes \
             -clientopts -setvncpw -vncpw "$VNC_PASSWORD" \
             -restart -agent -privs -all
 
-      - name: Install & Start Ngrok
-        env:
-          NGROK_AUTH_TOKEN: ${{ secrets.NGROK_AUTH_TOKEN }}
-        run: |
-          # Fast direct download (brew se fast aur clean hai)
-          curl -s https://bin.equinox.io/c/bNyj1mQVY4c/ngrok-v3-stable-darwin-arm64.zip -o ngrok.zip
-          unzip -q ngrok.zip
-          sudo mv ngrok /usr/local/bin/
-
-          # Configure token
+          # 2. Setup Ngrok token
           ngrok config add-authtoken "$NGROK_AUTH_TOKEN"
 
-          # Start ngrok in background
+          # 3. Start ngrok in background
           nohup ngrok tcp 5900 --log=stdout > ngrok.log 2>&1 &
           
-          # Wait until tunnel is established
+          # 4. Wait for tunnel URL
           echo "Waiting for Ngrok tunnel..."
           for i in {1..30}; do
             URL=$(curl -s http://127.0.0.1:4040/api/tunnels | grep -o 'tcp://[^"]*' || true)
@@ -50,8 +42,9 @@ jobs:
             sleep 2
           done
 
+          # Check if tunnel failed
           if [ -z "$URL" ]; then
-            echo "Ngrok failed to start. Printing log:"
+            echo "Ngrok failed to connect. Showing logs:"
             cat ngrok.log
             exit 1
           fi
