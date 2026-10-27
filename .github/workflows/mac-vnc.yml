@@ -10,25 +10,12 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Setup Free Terminal & Remote Access
-        run: |
-          # tmate install karna
-          brew install tmate
-
-          # tmate session start karna
-          tmate -S /tmp/tmate.sock new-session -d
-          tmate -S /tmp/tmate.sock wait tmate-ready
-
-          # Web aur SSH links print karna
-          echo "============================================================"
-          echo "DIRECT BROWSER TERMINAL LINK:"
-          tmate -S /tmp/tmate.sock display -p '#{tmate_web}'
-          echo "============================================================"
-          echo "SSH CONNECTION COMMAND:"
-          tmate -S /tmp/tmate.sock display -p '#{tmate_ssh}'
-          echo "============================================================"
+      - name: Setup Tmate Terminal
+        uses: mxschmitt/action-tmate@v3
+        with:
+          detached: true
 
       - name: Keep Runner Alive
         run: |
-          echo "macOS session active. Running for up to 6 hours..."
+          echo "macOS live session is active..."
           sleep 21600
