@@ -1,0 +1,45 @@
+name: macOS Free VNC
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Install Ngrok & Setup VNC
+        env:
+          NGROK_AUTH_TOKEN: ${{ secrets.NGROK_AUTH_TOKEN }}
+          VNC_PASSWORD: ${{ secrets.VNC_PASSWORD }}
+        run: |
+          # Screen Sharing / VNC enable karna
+          sudo defaults write /var/db/launchd.db/com.apple.launchd/overrides.plist com.apple.screensharing -dict Disabled -bool false
+          sudo launchctl load -w /System/Library/LaunchDaemons/com.apple.screensharing.plist
+          
+          # VNC Password set karna runner user ke liye
+          sudo /System/Library/CoreServices/RemoteManagement/ARDAgent.app/Contents/Resources/kickstart \
+            -activate -configure -access -on \
+            -clientopts -setvnclegacy -vnclegacy yes \
+            -clientopts -setvncpw -vncpw "$VNC_PASSWORD" \
+            -restart -agent -privs -all
+
+          # Ngrok install aur configure karna
+          brew install ngrok/ngrok/ngrok
+          ngrok config add-authtoken "$NGROK_AUTH_TOKEN"
+          
+          # VNC port (5900) par Ngrok tunnel run karna (Background)
+          nohup ngrok tcp 5900 --log=stdout > ngrok.log 2>&1 &
+          sleep 5
+
+          # Connection URL print karna
+          echo "=============================================="
+          curl -s http://127.0.0.1:4040/api/tunnels | grep -o 'tcp://[^"]*'
+          echo "=============================================="
+
+      - name: Keep Runner Alive
+        run: |
+          echo "macOS session started. Active for up to 6 hours."
+          sleep 21600
